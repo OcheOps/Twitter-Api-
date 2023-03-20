@@ -3,8 +3,17 @@ async fn main() -> io::Result<()> {
     env::set_var("RUST_LOG", "actix_web=debug,actix_server=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    // set up database connection pool
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL");
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool");
+
+    HttpServer::new(move || {
         App::new()
+            // Set up DB pool to be used with web::Data<Pool> extractor
+            .data(pool.clone())
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
             // register HTTP requests handlers
